@@ -2,6 +2,8 @@ package ca.concordia.filesystem;
 
 import ca.concordia.filesystem.datastructures.FEntry;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -9,7 +11,7 @@ public class FileSystemManager {
 
     private final int MAXFILES = 5;
     private final int MAXBLOCKS = 10;
-    private final static FileSystemManager instance;
+    private final static FileSystemManager instance = null;
     private final RandomAccessFile disk;
     private final ReentrantLock globalLock = new ReentrantLock();
 
@@ -20,10 +22,29 @@ public class FileSystemManager {
 
     public FileSystemManager(String filename, int totalSize) {
         // Initialize the file system manager with a file
+
         if(instance == null) {
-            //TODO Initialize the file system
+
+            try {
+                //TODO Initialize the file system
+
+                        this.disk = new RandomAccessFile(filename, "rw");
+                        this.disk.setLength(totalSize);
+
+                        System.out.println("File " + filename + " created");
+                        System.out.println(" ");
+                        System.out.println("Total blocks: " + totalSize);
+
+            }
+
+            catch (IOException e){
+                throw new IllegalArgumentException("ERROR");
+            }
+
+
         } else {
             throw new IllegalStateException("FileSystemManager is already initialized.");
+
         }
 
     }
