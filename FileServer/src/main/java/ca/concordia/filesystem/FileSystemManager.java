@@ -1,4 +1,4 @@
-//Revision 1.2
+//Version 1.2
 
 package ca.concordia.filesystem;
 
@@ -19,8 +19,9 @@ public class FileSystemManager {
     private final ReentrantLock globalLock = new ReentrantLock();
 
     private static final int BLOCK_SIZE = 128; // Example block size
+
     private FEntry[] inodeTable; // Array of inodes
-    private boolean[] freeBlockList; // Bitmap for free blocks
+    private boolean[] freeBlockList; // Bitmap for free blocks (0 empty, 1 taken)
 
     public FileSystemManager(String filename, int totalSize) {
         // Initialize the file system manager with a file
@@ -30,6 +31,7 @@ public class FileSystemManager {
             try {
                 //TODO Initialize the file system
 
+                        //virtual memory mode and length
                         this.disk = new RandomAccessFile(filename, "rw");
                         this.disk.setLength(totalSize);
 
@@ -52,15 +54,46 @@ public class FileSystemManager {
     }
 
     public void createFile(String fileName) throws Exception {
-        // TODO
 
-        FEntry entry;
-        FNode root;
+
+        freeBlockList = new boolean[MAXBLOCKS]; //initialize size for freeBlocklist
+        int indexfree=0;
+
+
+        //1)run algorithm to check next available spot in blocklist using the bitmap
+        for (int i=0; i<MAXBLOCKS; i++) {
+            if(!freeBlockList[i]){ //if block is free
+                indexfree = i; //save free index
+            }
+        }
+
+
+
+
+
+            //2)create file entry
+        FEntry newfile = new FEntry(fileName, BLOCK_SIZE, );
+
+
+        //place metadata in array
+        for (int i=0; i<inodeTable.length; i++) {
+
+            if(inodeTable[i] == null) {
+                inodeTable[i] = newfile;
+
+            }
+            else{
+                System.out.println("no empty space");
+            }
+        }
+
+        //set location in freeblocklist to 1 (spot now taken)
+
+        //allocate space on virtual disk
+        disk.write();
+
 
         throw new UnsupportedOperationException("Method not implemented yet.");
-
-
-
     }
 
 
