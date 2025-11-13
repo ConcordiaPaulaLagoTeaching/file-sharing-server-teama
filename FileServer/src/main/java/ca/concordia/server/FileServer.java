@@ -1,3 +1,5 @@
+//Version 1.0
+
 package ca.concordia.server;
 import ca.concordia.filesystem.FileSystemManager;
 
@@ -43,6 +45,19 @@ public class FileServer {
                                 writer.flush();
                                 break;
                             //TODO: Implement other commands READ, WRITE, DELETE, LIST
+                            case "DELETE":
+
+                            case "WRITE":
+
+                            case "READ":
+
+                            case "LIST":
+
+
+
+
+
+
                             case "QUIT":
                                 writer.println("SUCCESS: Disconnecting.");
                                 return;
