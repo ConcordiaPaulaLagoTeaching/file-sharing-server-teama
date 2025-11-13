@@ -3,6 +3,7 @@
 package ca.concordia.filesystem;
 
 import ca.concordia.filesystem.datastructures.FEntry;
+import ca.concordia.filesystem.datastructures.FNode;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -18,7 +19,6 @@ public class FileSystemManager {
     private final ReentrantLock globalLock = new ReentrantLock();
 
     private static final int BLOCK_SIZE = 128; // Example block size
-
     private FEntry[] inodeTable; // Array of inodes
     private boolean[] freeBlockList; // Bitmap for free blocks
 
@@ -53,7 +53,14 @@ public class FileSystemManager {
 
     public void createFile(String fileName) throws Exception {
         // TODO
+
+        FEntry entry;
+        FNode root;
+
         throw new UnsupportedOperationException("Method not implemented yet.");
+
+
+
     }
 
 
