@@ -68,10 +68,7 @@ public class FileSystemManager {
         }
 
 
-        FNode newnode = new FNode(indexfree);
-        while (newnode.next){
 
-        }
 
 
             //2)create file entry
