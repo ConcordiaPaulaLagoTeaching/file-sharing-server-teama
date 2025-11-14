@@ -3,6 +3,7 @@
 package ca.concordia.filesystem;
 
 import ca.concordia.filesystem.datastructures.FEntry;
+import ca.concordia.filesystem.datastructures.FNode;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -25,27 +26,28 @@ public class FileSystemManager {
     public FileSystemManager(String filename, int totalSize) {
         // Initialize the file system manager with a file
 
-        if(instance == null) {
+        if (instance == null) {
 
             try {
-                        //initialize the array containing all the File entries
-                        fileEntryDescriptors = new FEntry[MAXFILES];
-
-                        //initialize the free block list array
-                        freeBlockList = new boolean[MAXBLOCKS];
+                //TODO Initialize the file system
 
 
-                        //virtual memory mode and length
-                        this.disk = new RandomAccessFile(filename, "rw");
-                        this.disk.setLength(totalSize);
+                //initialize the array containing all the File entries
+                fileEntryDescriptors = new FEntry[MAXFILES];
 
-                        System.out.println("File " + filename + " created");
-                        System.out.println(" ");
-                        System.out.println("Total blocks: " + totalSize);
+                //initialize the free block list array
+                freeBlockList = new boolean[MAXBLOCKS];
 
-            }
 
-            catch (IOException e){
+                //virtual memory mode and length
+                this.disk = new RandomAccessFile(filename, "rw");
+                this.disk.setLength(totalSize);
+
+                System.out.println("File " + filename + " created");
+                System.out.println(" ");
+                System.out.println("Total blocks: " + totalSize);
+
+            } catch (IOException e) {
                 throw new IllegalArgumentException("ERROR");
             }
 
@@ -118,9 +120,77 @@ public class FileSystemManager {
 
 
 
+    // TODO: Add readFile, writeFile, deleteFile, ListFile
+    public void deleteFile(String fileName) throws Exception {
+
+        //SEARCH
+
+        //Main variables one is to allocate the deleted file location and the other is to find it in FEntry
+        int foundIndex = -1;
+        FEntry filetoDelete = null;
+
+        //Allocate the file's metadata
+        for (int i = 0; i < fileEntryDescriptors.length; i++) {
+            //Making sure that FEntry has data
+            if (fileEntryDescriptors[i] != null) {
+                if (fileEntryDescriptors[i].getFilename().equals(fileName)) {
+                    //Save the data
+                    foundIndex = i;
+                    filetoDelete = fileEntryDescriptors[i];
+
+                    break;
+                }
+            }
+        }
+
+        //Block that will check if foundIndex has changed or not
+        if (foundIndex != 1){
+            System.out.println("File" + fileName +"is found" );
+        }
+        //Start deletion process
+        //Method : getFirstBlock
+        else {
+            int currentBlockIndex = filetoDelete.getFirstBlock();
+            while (currentBlockIndex != -1){
+                //Retrieve FNode object
+                FNode currentNode = readFNode (currentBlockIndex);
+
+                freeBlockList[currentNode.getBlockIndex()] = false; //free the data block
+                freeBlockList[currentBlockIndex] = false; //free the metadata
+
+                currentBlockIndex = currentNode.getNext(); //update index for next block index
+            }
+            fileEntryDescriptors[foundIndex] = null; //complete deletion
+        }
+    }
+
+    //Helper method : get the correct byte location, read the raw bytes and convert them into Fnode object
+    private FNode readFNode (int blockIndex) throws Exception{
+
+        //Physical byte offset
+        int offset = blockIndex * BLOCK_SIZE;
+        disk.seek(offset);
 
 
+        //Read and store the two main
+        int dataBlockIndex = disk.readInt();
+        int nextFNodeIndex = disk.readInt();
 
+        //Construct FNode
+        FNode nextNode = new FNode(dataBlockIndex);
+        nextNode.next(nextFNodeIndex);
+        return nextNode;
+    }
 
-    // TODO: Add readFile, writeFile and other required methods,
+//    public byte[] readFile(String fileName) throws Exception{
+//
+//        getFilesize()
+//
+//        readByte
+//
+//    }
+
 }
+
+
+
