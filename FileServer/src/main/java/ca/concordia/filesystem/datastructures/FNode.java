@@ -8,5 +8,18 @@ public class FNode {
     public FNode(int blockIndex) {
         this.blockIndex = blockIndex;
         this.next = -1;
+        
     }
+
+    public void next(int nextFNodeIndex) {
+    }
+
+    public int getBlockIndex(){
+        return blockIndex;
+    }
+
+    public int getNext(){
+        return next;
+    }
+
 }
