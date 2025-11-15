@@ -46,7 +46,10 @@ public class FileServer {
                                 break;
                             //TODO: Implement other commands READ, WRITE, DELETE, LIST
                             case "DELETE":
-
+                                fsManager.deleteFile(parts[1]);
+                                writer.println("SUCCESS: File '" + parts[1] + "' deleted.");
+                                writer.flush();
+                                break;
                             case "WRITE":
 
                             case "READ":
