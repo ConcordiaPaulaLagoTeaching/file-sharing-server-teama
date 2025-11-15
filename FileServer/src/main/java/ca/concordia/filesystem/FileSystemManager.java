@@ -7,6 +7,7 @@ import ca.concordia.filesystem.datastructures.FNode;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class FileSystemManager {
@@ -22,6 +23,7 @@ public class FileSystemManager {
     private final ReentrantLock globalLock = new ReentrantLock();
 
     private static final int BLOCK_SIZE = 128; // Example block size
+    private final int DATA_BLOCK_START_INDEX = 2; // Data blocks start at Physical Block 2
 
     private FEntry[] fileEntryDescriptors; // Array of inodes
     private boolean[] freeBlockList; // Bitmap for free blocks (0 empty, 1 taken)
@@ -375,9 +377,6 @@ public class FileSystemManager {
         return nextNode;
     }
 
-
-
-
     public byte[] readFile(String fileName) throws Exception{
 
         //READ
@@ -402,7 +401,7 @@ public class FileSystemManager {
 
         //Block that will check if foundIndex has changed or not
         if (foundIndex_read == -1){
-            throw new Exception("Error : File is not found");
+            throw new Exception("Error: " + fileName + " does not exist");
         }
 
         //Start reading process
@@ -413,32 +412,51 @@ public class FileSystemManager {
             byte [] readFileData = new byte[filetoRead.getFilesize()];
             int readFilePos = 0;
 
+
             while(currentBlockIndex != -1){
+
+                int remainByteFile = filetoRead.getFilesize() - readFilePos;
+                int remainByteBlock;
+
+                if (remainByteFile < BLOCK_SIZE){
+
+                    remainByteBlock = remainByteFile;
+                }
+
+                else {
+                    remainByteBlock = BLOCK_SIZE;
+                }
+
                 //Retrieve FNode object
                 FNode currentNode = readFNode(currentBlockIndex);
 
                 int currentBlockContent = currentNode.getBlockIndex();
 
                 //Physical byte offset
-                int offset = currentBlockContent * BLOCK_SIZE;
+                //Offset starts after reading block 0 (FEntry) and block 1 (FNodes)
+                int offset = (currentBlockContent + DATA_BLOCK_START_INDEX) * BLOCK_SIZE;
                 disk.seek(offset);
 
                 //Read one block (128 byte) at a time
                 byte [] blockData = new byte[BLOCK_SIZE];
-                int readByte = disk.read(blockData);
+                int readByte = disk.read(blockData, 0, remainByteBlock);
 
+                if (readByte == -1 ){
+                    break;
+                }
 
                 //Copy the temporary byte data into final byte data
                 System.arraycopy(blockData, 0, readFileData, readFilePos, readByte);
                 readFilePos = readFilePos + readByte;
 
                 currentBlockIndex = currentNode.getNext(); //update index for next block index
+
+
             }
+
             return readFileData;
         }
     }
-
-
 
     public String[] listFiles() throws Exception {
 
@@ -457,8 +475,6 @@ public class FileSystemManager {
         }
         return lsFiles;
     }
-
-
-
 }
+
 

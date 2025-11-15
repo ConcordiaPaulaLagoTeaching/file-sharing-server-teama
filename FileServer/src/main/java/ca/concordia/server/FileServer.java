@@ -55,7 +55,6 @@ public class FileServer {
                                 writer.println("SUCCESS: File '" + parts[1] + "' deleted.");
                                 writer.flush();
                                 break;
-
                             case "WRITE":
 
                                 //assembles all the words to write to the file
@@ -70,14 +69,33 @@ public class FileServer {
 
                             case "READ":
 
+                                String filename = parts[1];
+
+                                    // Read file data
+                                    byte[] fileData = fsManager.readFile(filename);
 
 
+                                        String content = new String(fileData, StandardCharsets.UTF_8);
+
+                                // Send content to client
+                                writer.println("The message for " + filename + " is :" + content);
+
+                                writer.flush();
                                 break;
-                            case "LIST":
-                                fsManager.listFiles();
-                                writer.println("SUCCESSFULLY READ FILES");
 
-                                writer.println(Arrays.toString(fsManager.listFiles()));
+                            case "LIST":
+
+                                String [] files = fsManager.listFiles();
+
+
+
+                                for (int i = 0; i < files.length; i++){
+
+                                    if (files[i] != null){
+                                        writer.println("Name: " + Arrays.toString(files));
+                                    }
+
+                                }
                                 writer.flush();
                                 break;
                             case "QUIT":
