@@ -12,6 +12,7 @@ public class FNode {
     }
 
     public void next(int nextFNodeIndex) {
+        this.next = nextFNodeIndex;
     }
 
     public int getBlockIndex(){

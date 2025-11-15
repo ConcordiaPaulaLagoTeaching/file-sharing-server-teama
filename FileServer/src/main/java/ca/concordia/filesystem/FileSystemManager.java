@@ -1,4 +1,4 @@
-//Version 1.4
+//Version 1.5
 
 package ca.concordia.filesystem;
 
@@ -90,6 +90,8 @@ public class FileSystemManager {
             //3) write metadata starting from offset in disk
             disk.seek(diskOffset);
 
+
+
             //add padding to name of file to keep file entry structure in order
             String filenamePadded;
             int padding = 0;
@@ -119,8 +121,6 @@ public class FileSystemManager {
     }
 
 
-
-    // TODO: Add readFile, writeFile, deleteFile, ListFile
     public void deleteFile(String fileName) throws Exception {
 
         //SEARCH
@@ -133,7 +133,7 @@ public class FileSystemManager {
         for (int i = 0; i < fileEntryDescriptors.length; i++) {
             //Making sure that FEntry has data
             if (fileEntryDescriptors[i] != null) {
-                if (fileEntryDescriptors[i].getFilename().equals(fileName)) {
+                if (fileEntryDescriptors[i].getFilename().trim().equals(fileName)) {
                     //Save the data
                     foundIndex = i;
                     filetoDelete = fileEntryDescriptors[i];
@@ -144,8 +144,8 @@ public class FileSystemManager {
         }
 
         //Block that will check if foundIndex has changed or not
-        if (foundIndex != 1){
-            System.out.println("File" + fileName +"is found" );
+        if (foundIndex == -1){
+            System.out.println("File" + fileName +"is not found" );
         }
         //Start deletion process
         //Method : getFirstBlock
@@ -161,6 +161,16 @@ public class FileSystemManager {
                 currentBlockIndex = currentNode.getNext(); //update index for next block index
             }
             fileEntryDescriptors[foundIndex] = null; //complete deletion
+
+            //Physical byte offset
+            int offset = foundIndex * FILEENTRYSIZE;
+            disk.seek(offset);
+
+            for (int i = 0; i < FILEENTRYSIZE; i++){
+                disk.writeByte(0);
+            }
+
+
         }
     }
 
@@ -168,7 +178,7 @@ public class FileSystemManager {
     private FNode readFNode (int blockIndex) throws Exception{
 
         //Physical byte offset
-        int offset = blockIndex * BLOCK_SIZE;
+        int offset = blockIndex *  BLOCK_SIZE;
         disk.seek(offset);
 
 
@@ -182,15 +192,71 @@ public class FileSystemManager {
         return nextNode;
     }
 
-//    public byte[] readFile(String fileName) throws Exception{
-//
-//        getFilesize()
-//
-//        readByte
-//
-//    }
+    public byte[] readFile(String fileName) throws Exception{
+
+        //READ
+
+        //Main variables one is to allocate the index of the file to read and the other is to find it in FEntry
+        int foundIndex_read = -1;
+        FEntry filetoRead = null;
+
+
+        //Allocate the file's metadata
+        for (int i = 0; i < fileEntryDescriptors.length; i++){
+            //Making sure that Fentry has data
+            if (fileEntryDescriptors[i] != null){
+                if(fileEntryDescriptors[i].getFilename().trim().equals(fileName)){
+                    //Save the data
+                    foundIndex_read = i;
+                    filetoRead = fileEntryDescriptors[i];
+                    break;
+                }
+            }
+        }
+
+        //Block that will check if foundIndex has changed or not
+        if (foundIndex_read == -1){
+            throw new Exception("Error : File is not found");
+        }
+
+        //Start reading process
+        else {
+              int currentBlockIndex = filetoRead.getFirstBlock();
+
+            //Utilize dynamic memory allocation
+            byte [] readFileData = new byte[filetoRead.getFilesize()];
+            int readFilePos = 0;
+
+              while(currentBlockIndex != -1){
+                  //Retrieve FNode object
+                  FNode currentNode = readFNode(currentBlockIndex);
+
+                  int currentBlockContent = currentNode.getBlockIndex();
+
+                  //Physical byte offset
+                  int offset = currentBlockContent * BLOCK_SIZE;
+                  disk.seek(offset);
+
+                  //Read one block (128 byte) at a time
+                  byte [] blockData = new byte[BLOCK_SIZE];
+                  int readByte = disk.read(blockData);
+
+
+                  //Copy the temporary byte data into final byte data
+                  System.arraycopy(blockData, 0, readFileData, readFilePos, readByte);
+                  readFilePos = readFilePos + readByte;
+
+                  currentBlockIndex = currentNode.getNext(); //update index for next block index
+              }
+            return readFileData;
+        }
+    }
+
+
+
+
+
 
 }
-
 
 
