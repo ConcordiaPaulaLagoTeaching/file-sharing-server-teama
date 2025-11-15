@@ -11,7 +11,7 @@ public class FNode {
         
     }
 
-    public void next(int nextFNodeIndex) {
+    public void setNext(int nextFNodeIndex) {
         this.next = nextFNodeIndex;
     }
 
@@ -22,5 +22,11 @@ public class FNode {
     public int getNext(){
         return next;
     }
+
+    public void setBlockIndex(int blockIndex){
+        this.blockIndex = blockIndex;
+    }
+
+
 
 }

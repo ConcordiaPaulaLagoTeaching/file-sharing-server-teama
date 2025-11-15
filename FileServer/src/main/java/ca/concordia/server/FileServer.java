@@ -8,6 +8,9 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+
 
 public class FileServer {
 
@@ -37,6 +40,8 @@ public class FileServer {
                         System.out.println("Received from client: " + line);
                         String[] parts = line.split(" ");
                         String command = parts[0].toUpperCase();
+                        byte[] stringtoByte;
+                        String writeContent;
 
                         switch (command) {
                             case "CREATE":
@@ -50,12 +55,31 @@ public class FileServer {
                                 writer.println("SUCCESS: File '" + parts[1] + "' deleted.");
                                 writer.flush();
                                 break;
+
                             case "WRITE":
+
+                                //assembles all the words to write to the file
+                                writeContent = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
+
+                                //convert String to array of bytes in order to pass as parameter to writeFile function
+                                stringtoByte = writeContent.getBytes(StandardCharsets.UTF_8);
+                                fsManager.writeFile(parts[1], stringtoByte);
+                                writer.println("Successfully wrote " + stringtoByte.length + " bytes to file: '" + parts[1] + "'.");
+                                writer.flush();
+                                break;
 
                             case "READ":
 
-                            case "LIST":
 
+
+                                break;
+                            case "LIST":
+                                fsManager.listFiles();
+                                writer.println("SUCCESSFULLY READ FILES");
+
+                                writer.println(Arrays.toString(fsManager.listFiles()));
+                                writer.flush();
+                                break;
                             case "QUIT":
                                 writer.println("SUCCESS: Disconnecting.");
                                 return;
