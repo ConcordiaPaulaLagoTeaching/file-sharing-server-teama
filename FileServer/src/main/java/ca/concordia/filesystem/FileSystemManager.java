@@ -21,7 +21,7 @@ public class FileSystemManager {
     private static final int BLOCK_SIZE = 128; // Example block size
 
     private FEntry[] fileEntryDescriptors; // Array of inodes
-    private boolean[] freeBlockList; // Bitmap for free blocks (0 empty, 1 taken)
+    private boolean[] freeBlockList; // Bitmap for free blocks (false empty, true taken)
 
     public FileSystemManager(String filename, int totalSize) {
         // Initialize the file system manager with a file
@@ -37,6 +37,10 @@ public class FileSystemManager {
 
                 //initialize the free block list array
                 freeBlockList = new boolean[MAXBLOCKS];
+
+                //set first two blocks as space for metadata
+                freeBlockList[0] = true;
+                freeBlockList[1] = true;
 
 
                 //virtual memory mode and length
@@ -87,7 +91,7 @@ public class FileSystemManager {
             diskOffset = saveIndex * FILEENTRYSIZE;
 
 
-            //3) write metadata starting from offset in disk
+            //4) write metadata starting from offset in disk
             disk.seek(diskOffset);
 
             //add padding to name of file to keep file entry structure in order
@@ -190,7 +194,114 @@ public class FileSystemManager {
 //
 //    }
 
+    public void writeFile(String fileName, byte[] contents) throws Exception{
+
+
+        boolean fileExistflag = false;
+        int numBytes = contents.length;
+        int numBlocksNeeded = 0;
+        boolean freeBlocksflag = false;
+        int[] freeBlockIndices;
+        freeBlockIndices = new int[freeBlockList.length];
+        int numFreeBlocks = 0;
+
+        int fileWRindex = 0;
+
+
+        //1) check if file name exist
+        for (int i=0; i<fileEntryDescriptors.length; i++){
+            if(fileEntryDescriptors[i].getFilename().equals(fileName)){
+                fileExistflag = true; //file exist
+                fileWRindex = i; //save index of file we're writting too
+                break;
+            }
+        }
+        if (!fileExistflag){
+            throw new Exception("Error: file does not exist");
+        }
+
+        //2) calculate needed space for contents (data block needed)
+
+        if ((contents.length%BLOCK_SIZE) == 0){
+            numBlocksNeeded = contents.length/BLOCK_SIZE;
+        }
+        else{
+            numBlocksNeeded = contents.length/BLOCK_SIZE + 1;
+        }
+
+        //3) find available space on disk
+        int count = 0;
+        for (int i=0; i< freeBlockList.length; i++) {
+
+            if (!freeBlockList[i]) { //if space is free
+                freeBlockIndices[count] = i; //saves index of free space
+                numFreeBlocks++; //counts the number of free blocks
+                count++;
+
+                if (numFreeBlocks == numBlocksNeeded){ //break if we found enough space
+                    break;
+                }
+            }
+        }
+        if (numFreeBlocks == numBlocksNeeded){
+            freeBlocksflag = true;
+        }
+        if (!freeBlocksflag){ //don't have enough free blocks to store this file
+            throw new Exception("Error: no more space available");
+        }
+
+
+        //4) split contents and add chunk by chunk to the disk
+
+        int offset = 0;
+        byte[] temp;
+        int position = 0;
+        int bufferoffset = 0;
+        int numBytesTocopy = 0;
+        int remainingBytes = 0;
+
+        for (int i = 0; i<numBlocksNeeded; i++){
+
+
+           // FNode node = new FNode(freeBlockIndices[i]);
+
+
+
+
+
+            //fileEntryDescriptors[fileWRindex].setFirstBlock();
+
+
+            temp = new byte[BLOCK_SIZE]; //fresh buffer
+            //write starting at offset in disk
+            offset = freeBlockIndices[i] * BLOCK_SIZE;
+
+            //temporarily store chunk of content in buffer
+            System.arraycopy(contents,position, temp, bufferoffset , BLOCK_SIZE);
+            position += 128;
+
+            disk.seek(offset);
+            disk.write(temp);
+        }
+    }
+
+
+    String[] listFiles(){
+
+        String[] listofFiles;
+
+        listofFiles = new String[fileEntryDescriptors.length];
+
+        for (int i=0; i<fileEntryDescriptors.length; i++){
+            listofFiles[i] = fileEntryDescriptors[i].getFilename();
+        }
+
+        return listofFiles;
+    }
+
 }
+
+
 
 
 
