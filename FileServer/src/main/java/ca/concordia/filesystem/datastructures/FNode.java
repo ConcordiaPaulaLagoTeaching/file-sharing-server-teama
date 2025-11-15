@@ -23,4 +23,8 @@ public class FNode {
         return next;
     }
 
+    public void setNext(int blockIndex){
+        this.blockIndex = blockIndex;
+    }
+
 }

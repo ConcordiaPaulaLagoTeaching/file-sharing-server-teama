@@ -8,6 +8,9 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+
 
 public class FileServer {
 
@@ -37,6 +40,7 @@ public class FileServer {
                         System.out.println("Received from client: " + line);
                         String[] parts = line.split(" ");
                         String command = parts[0].toUpperCase();
+                        byte[] bytearray;
 
                         switch (command) {
                             case "CREATE":
@@ -47,21 +51,44 @@ public class FileServer {
                             //TODO: Implement other commands READ, WRITE, DELETE, LIST
                             case "DELETE":
                                 fsManager.deleteFile(parts[1]);
-                                writer.println("SUCCESS: File " + parts [1] + "deleted.");
+                                writer.println("SUCCESS: File '" + parts[1] + "' deleted.");
                                 writer.flush();
                                 break;
+
                             case "WRITE":
 
-                            case "READ":
-                                fsManager.readFile(parts[1]);
-                                writer.println("SUCCESS : File " + parts[1] + "in read mode");
 
-                                String readableText = new String(fsManager.readFile(parts[1]));
-                                System.out.println(readableText);
+                            case "READ":
+
+                                String filename = parts[1];
+
+                                    // Read file data
+                                    byte[] fileData = fsManager.readFile(filename);
+
+
+                                        String content = new String(fileData, StandardCharsets.UTF_8);
+
+                                // Send content to client
+                                writer.println("The message for " + filename + " is :" + content);
+
                                 writer.flush();
                                 break;
+
                             case "LIST":
 
+                                String [] files = fsManager.listFiles();
+
+
+
+                                for (int i = 0; i < files.length; i++){
+
+                                    if (files[i] != null){
+                                        writer.println("Name: " + Arrays.toString(files));
+                                    }
+
+                                }
+                                writer.flush();
+                                break;
                             case "QUIT":
                                 writer.println("SUCCESS: Disconnecting.");
                                 return;
