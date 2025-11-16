@@ -1,4 +1,4 @@
-//Version 1.5.3.1
+//Version 1.5
 
 package ca.concordia.filesystem;
 
@@ -16,6 +16,8 @@ public class FileSystemManager {
     private final int MAXFILES = 5;
     private final int MAXBLOCKS = 10;
     private final int DATASIZE = 128;
+    private final int NODESIZE = 8;
+    private final int DATABLOCKSTART = 2;
     private final static FileSystemManager instance = null;
     private final RandomAccessFile disk;
     private final ReentrantLock globalLock = new ReentrantLock();
@@ -42,7 +44,7 @@ public class FileSystemManager {
                 freeBlockList = new boolean[MAXBLOCKS];
 
 
-                //saved space for metadata
+                //saved space in first two blocks for metadata
                 freeBlockList[0] = true;
                 freeBlockList[1] = true;
 
@@ -67,59 +69,67 @@ public class FileSystemManager {
 
     }
 
+    private void enterFEntry(int index, FEntry file) throws IOException {
+
+        //calculate offset to write the next file entry
+        int diskOffset = index * FILEENTRYSIZE;
+
+        //write metadata starting from offset in disk
+        disk.seek(diskOffset);
+        String filenamePadded;
+        int padding = 0;
+        filenamePadded = file.getFilename();
+
+        if (filenamePadded.length() < 11) {
+
+            padding = 11 - filenamePadded.length();
+            for (int i = 0; i < padding; i++) {
+                filenamePadded = filenamePadded + " ";
+            }
+        }
+        //7) write to disk
+        disk.writeBytes(filenamePadded);
+        disk.writeShort(file.getFilesize());
+        disk.writeShort(file.getFirstBlock());
+    }
+
+
+
+
+
     public void createFile(String fileName) throws Exception {
 
         int saveIndex = -1;
-        int diskOffset = 0;
 
-        //1) create a new file entry
-        FEntry newFile = new FEntry(fileName, (short)0, (short)-1);
+        //1) check if file already exist
+        for (int i = 0; i < fileEntryDescriptors.length; i++) {
+            if ((fileEntryDescriptors[i] != null) && ((fileEntryDescriptors[i].getFilename().trim()).equals(fileName))) {
+                throw new Exception("File: " + fileName + " already exist");
+            }
+        }
+
+        //2) create a new file entry
+        FEntry newFile = new FEntry(fileName, (short) 0, (short) -1);
 
         try {
-            //2) check the file entry array to see if there's available space
+
+            //3) check the file entry array to see if there's available space
             for (int i = 0; i < fileEntryDescriptors.length; i++) {
                 if (fileEntryDescriptors[i] == null) {
                     saveIndex = i;
                     break;
                 }
             }
+
             if (saveIndex == -1) {
                 throw new Exception("Error: No more space for files");
-            }
-            else {
+            } else {
                 fileEntryDescriptors[saveIndex] = newFile;
-
             }
 
-            //3) calculate offset to write the next file entry
-            diskOffset = saveIndex * FILEENTRYSIZE;
+            enterFEntry(saveIndex, newFile);
 
-
-            //3) write metadata starting from offset in disk
-            disk.seek(diskOffset);
-
-
-
-            //add padding to name of file to keep file entry structure in order
-            String filenamePadded;
-            int padding = 0;
-            filenamePadded = newFile.getFilename();
-
-            if (filenamePadded.length() < 11) {
-
-                padding = 11 - filenamePadded.length();
-                for (int i = 0; i < padding; i++) {
-                    filenamePadded = filenamePadded + " ";
-                }
-            }
-
-            disk.writeBytes(filenamePadded);
-            disk.writeShort(newFile.getFilesize());
-            disk.writeShort(newFile.getFirstBlock());
-
-        }
-
-        catch (IOException e){
+        } catch (IOException e) {
             if (saveIndex != -1) {
                 fileEntryDescriptors[saveIndex] = null;
             }
@@ -152,16 +162,16 @@ public class FileSystemManager {
         }
 
         //Block that will check if foundIndex has changed or not
-        if (foundIndex == -1){
-            System.out.println("File" + fileName +"is not found" );
+        if (foundIndex == -1) {
+            System.out.println("File" + fileName + "is not found");
         }
         //Start deletion process
         //Method : getFirstBlock
         else {
             int currentBlockIndex = filetoDelete.getFirstBlock();
-            while (currentBlockIndex != -1){
+            while (currentBlockIndex != -1) {
                 //Retrieve FNode object
-                FNode currentNode = readFNode (currentBlockIndex);
+                FNode currentNode = readFNode(currentBlockIndex);
 
                 freeBlockList[currentNode.getBlockIndex()] = false; //free the data block
                 freeBlockList[currentBlockIndex] = false; //free the metadata
@@ -174,7 +184,7 @@ public class FileSystemManager {
             int offset = foundIndex * FILEENTRYSIZE;
             disk.seek(offset);
 
-            for (int i = 0; i < FILEENTRYSIZE; i++){
+            for (int i = 0; i < FILEENTRYSIZE; i++) {
                 disk.writeByte(0);
             }
 
@@ -182,11 +192,9 @@ public class FileSystemManager {
         }
     }
 
-    public void writeFile(String fileName, byte[] contents) throws Exception{
-
+    public void writeFile(String fileName, byte[] contents) throws Exception {
 
         boolean fileExistflag = false;
-        int numBytes = contents.length;
         int numBlocksNeeded = 0;
         boolean freeBlocksflag = false;
         int[] freeBlockIndices;
@@ -195,111 +203,167 @@ public class FileSystemManager {
         int fileWRindex = 0;
 
         //1) check if file name exist
-        for (int i=0; i<fileEntryDescriptors.length; i++){
-            if(fileEntryDescriptors[i].getFilename().equals(fileName)){
+        for (int i = 0; i < fileEntryDescriptors.length; i++) {
+            if ((fileEntryDescriptors[i] != null) && ((fileEntryDescriptors[i].getFilename().trim()).equals(fileName))) {
                 fileExistflag = true; //file exist
                 fileWRindex = i; //save index of file we're writting too
                 break;
             }
         }
-        if (!fileExistflag){
+        if (!fileExistflag) {
             throw new Exception("Error: file does not exist");
         }
 
-        //2) calculate needed space for contents (data block needed)
+        //2) overwrite file if it exists on the disk
+        FEntry existingfile = fileEntryDescriptors[fileWRindex];
+        int existingfileFnodeIndex = existingfile.getFirstBlock(); //first node
 
-        if ((contents.length%BLOCK_SIZE) == 0){
-            numBlocksNeeded = contents.length/BLOCK_SIZE;
+        //reset Nodes
+        while (existingfileFnodeIndex != -1) { //until last node is reached (node.getNext() is -1)
+            //start at currentNode node of existing file
+            int offsetOfNode = BLOCK_SIZE + (existingfileFnodeIndex * NODESIZE); //Nodes start at block 1
+            disk.seek(offsetOfNode);
+            int thisNodeIndex = disk.readInt(); //read 4bytes of the current existing node
+            int nextNodeIndex = disk.readInt(); //read 4bytes of the next of existing node
+
+            FNode node = new FNode(thisNodeIndex); //reference to current node
+            node.setNext(nextNodeIndex);
+            //free data block on free block list
+            freeBlockList[node.getBlockIndex() + DATABLOCKSTART] = false;
+
+            //create an object to explicitly clear the Node metadata
+            FNode clearFNode = new FNode(-1);
+            clearFNode.setNext(-1);
+            //clear location of existing file node
+            disk.seek(offsetOfNode);
+            disk.writeInt(clearFNode.getBlockIndex());
+            disk.writeInt(clearFNode.getNext());
+
+            existingfileFnodeIndex = node.getNext(); //go to next node of existing file
         }
-        else{
-            numBlocksNeeded = contents.length/BLOCK_SIZE + 1;
+        //reset File entry
+        existingfile.setFirstBlock((short) -1);
+        existingfile.setFilesize((short) 0);
+        enterFEntry(fileWRindex, existingfile); //clear file entry on disk
+
+        //3) calculate needed space for contents (numBlocksNeeded)
+        if ((contents.length % BLOCK_SIZE) == 0) { //perfectly fit in blocks
+            numBlocksNeeded = contents.length / BLOCK_SIZE;
+        } else {
+            numBlocksNeeded = contents.length / BLOCK_SIZE + 1;
         }
 
-        //3) find available space on disk
+        //4) find available space on disk
         int count = 0;
-        for (int i=0; i< freeBlockList.length; i++) {
+        for (int i = 0; i < freeBlockList.length; i++) {
 
             if (!freeBlockList[i]) { //if space is free
-                freeBlockIndices[count] = i; //saves index of free space
+                freeBlockIndices[count] = i - DATABLOCKSTART; //saves index of free space
                 numFreeBlocks++; //counts the number of free blocks
                 count++;
-                if (numFreeBlocks == numBlocksNeeded){ //break if we found enough space
+                if (numFreeBlocks == numBlocksNeeded) { //break if we found enough space
+                    break;
+                }
+            }
+        }
+        if (numFreeBlocks == numBlocksNeeded) {
+            freeBlocksflag = true;
+        }
+        if (!freeBlocksflag) { //don't have enough free blocks to store this file
+            throw new Exception("Error: no more space available");
+        }
+
+        //5) check FNode availability
+        int freeNodes = 0;
+        int[] freeNodeIndices = new int[MAXBLOCKS];
+
+        for(int i=0; i<MAXBLOCKS; i++){
+            FNode node = readFNode(i);
+
+            if (node.getBlockIndex() < 0){
+                freeNodeIndices[freeNodes++] = i;
+                if (freeNodes == numBlocksNeeded){ //if enough nodes were found, break
                     break;
                 }
             }
         }
 
-        if (numFreeBlocks == numBlocksNeeded){
-            freeBlocksflag = true;
-        }
-        if (!freeBlocksflag){ //don't have enough free blocks to store this file
+        if (freeNodes != numBlocksNeeded){
             throw new Exception("Error: no more space available");
         }
 
-
-
-
-        //4) split contents and add chunk by chunk to the disk
-        int offset = 0;
-        byte[] temp;
+        //6) split contents and adds the data chunk by chunk to the disk
+        int offsetWR = 0;
         int position = 0;
-        int bufferoffset = 0;
         int numBytesTocopy = 0;
         int remainingBytes = 0;
-        int nextNode = 0;
+        int nextNodeindex = 0;
+        //for the buffer
+        byte[] temp;
 
-        for (int i = 0; i<numBlocksNeeded; i++){
+        for (int i = 0; i < numBlocksNeeded; i++) {
 
+            //write Node meta data to disk------------------------------------------------------------
             temp = new byte[BLOCK_SIZE]; //fresh buffer
-            //write starting at offset in disk
-            offset = freeBlockIndices[i] * BLOCK_SIZE;
 
-            /// ////////////////////////////////////
-            if (i<numBlocksNeeded-1){ //if we have not reached the last block
-                nextNode = freeBlockIndices[i+1]; //next node points to the next blockIndex thats free
+            int currentNodeindex = freeNodeIndices[i];
+
+            if (i < numBlocksNeeded - 1) { //if we have not reached the last block
+                nextNodeindex = freeNodeIndices[i + 1]; //next node points to the next node Index thats free
+            } else {
+                nextNodeindex = -1; //next node of final block is -1 (end of file entry)
             }
-            else{
-                nextNode = -1; //next node of final block is -1 (end of file entry)
-            }
-            FNode node = new FNode(nextNode);
-            /// /////////////////////////////////////
+            int datablockindex = freeBlockIndices[i];
+
+            FNode node = new FNode(datablockindex);
+            node.setNext(nextNodeindex);
+
+            int offsettemp = BLOCK_SIZE + (currentNodeindex * NODESIZE);
+            disk.seek(offsettemp);
+            //write the 8 bytes for the nodes
+            disk.writeInt(node.getBlockIndex());
+            disk.writeInt(node.getNext());
+
+            //write starting at offset in disk where data starts------------------------------------
+            offsetWR = (freeBlockIndices[i] + DATABLOCKSTART) * BLOCK_SIZE;
 
             remainingBytes = contents.length - position;
 
-            if (i<numBlocksNeeded-1){
-                numBytesTocopy = DATASIZE;
-            }
-            else if (i == numBlocksNeeded-1){
+            if (i < numBlocksNeeded - 1) {
+                numBytesTocopy = DATASIZE; //for all full blocks (128 bytes)
+            } else if (i == numBlocksNeeded - 1) {
 
-                numBytesTocopy = remainingBytes;
+                numBytesTocopy = remainingBytes; //remaining bytes
             }
-
             //temporarily store chunk of content in buffer
-            System.arraycopy(contents,position, temp, bufferoffset ,numBytesTocopy);
+            System.arraycopy(contents, position, temp, 0, numBytesTocopy);
             position += numBytesTocopy;
 
-            disk.seek(offset);
-            disk.write(temp);
+            disk.seek(offsetWR);
+            disk.write(temp,0,numBytesTocopy);
             //System.out.println(Arrays.toString(temp));
         }
-
-        //update in file entries
+        //update in file entries on the disk-------------------------------------------------------
         FEntry fileWR = fileEntryDescriptors[fileWRindex]; //reference to file were writing in
-        fileWR.setFirstBlock((short)freeBlockIndices[0]);
-        fileWR.setFilesize((short)contents.length);
-
-        //set blocks that are used to true in the freeblocklist
-        for (int i=0; i<numBlocksNeeded; i++){
-            freeBlockList[(freeBlockIndices[i])] = true;
+        fileWR.setFirstBlock((short) freeNodeIndices[0]); //first block points to first node
+        fileWR.setFilesize((short) contents.length);
+        enterFEntry(fileWRindex, fileWR); //enter file into disk
+        //set blocks that are used to true in the free blocklist
+        for (int i = 0; i < numBlocksNeeded; i++) {
+            freeBlockList[(freeBlockIndices[i]) + DATABLOCKSTART] = true;
         }
-
     }
 
+
+
+
+
+
     //Helper method : get the correct byte location, read the raw bytes and convert them into Fnode object
-    private FNode readFNode (int blockIndex) throws Exception{
+    private FNode readFNode (int nodeIndex) throws Exception{
 
         //Physical byte offset
-        int offset = blockIndex *  BLOCK_SIZE;
+        int offset = (nodeIndex * NODESIZE) +  BLOCK_SIZE;
         disk.seek(offset);
 
 
@@ -309,7 +373,7 @@ public class FileSystemManager {
 
         //Construct FNode
         FNode nextNode = new FNode(dataBlockIndex);
-        nextNode.next(nextFNodeIndex);
+        nextNode.setNext(nextFNodeIndex);
         return nextNode;
     }
 
