@@ -43,7 +43,8 @@ public class MultiClients implements Runnable{
                     System.out.println("Received from client: " + (count++) + line);
                     String[] parts = line.split(" ");
                     String command = parts[0].toUpperCase();
-                    byte[] bytearray;
+                    byte[] stringtoByte;
+                    String writeContent;
 
                     switch (command) {
                         case "CREATE":
@@ -59,7 +60,15 @@ public class MultiClients implements Runnable{
                             break;
 
                         case "WRITE":
+                            //assembles all the words to write to the file
+                            writeContent = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
 
+                            //convert String to array of bytes in order to pass as parameter to writeFile function
+                            stringtoByte = writeContent.getBytes(StandardCharsets.UTF_8);
+                            fsManager.writeFile(parts[1], stringtoByte);
+                            writer.println("Successfully wrote " + stringtoByte.length + " bytes to file: '" + parts[1] + "'.");
+                            writer.flush();
+                            break;
 
                         case "READ":
 
