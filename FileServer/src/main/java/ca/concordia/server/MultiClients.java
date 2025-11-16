@@ -10,6 +10,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -60,6 +61,10 @@ public class MultiClients implements Runnable{
                             break;
 
                         case "WRITE":
+
+                            if(parts.length < 3){
+                                throw new Exception("did not write a message");
+                            }
                             //assembles all the words to write to the file
                             writeContent = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
 
@@ -81,7 +86,8 @@ public class MultiClients implements Runnable{
                             String content = new String(fileData, StandardCharsets.UTF_8);
 
                             // Send content to client
-                            writer.println("The message for " + filename + " is :" + content);
+                            writer.println(filename + "content: " + content);
+
 
                             writer.flush();
                             break;
@@ -107,6 +113,8 @@ public class MultiClients implements Runnable{
                             break;
                     }
                 }
+            } catch (SocketException e){
+                System.err.println("Client disconnected");
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {

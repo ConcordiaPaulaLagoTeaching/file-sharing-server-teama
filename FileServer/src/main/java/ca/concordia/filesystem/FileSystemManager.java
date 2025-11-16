@@ -21,6 +21,8 @@ public class FileSystemManager {
     private final static FileSystemManager instance = null;
     private final RandomAccessFile disk;
     private final ReentrantLock globalLock = new ReentrantLock();
+    private final ReentrantLock fileserverLock = globalLock;
+
 
     private static final int BLOCK_SIZE = 128; // Example block size
     private final int DATA_BLOCK_START_INDEX = 2; // Data blocks start at Physical Block 2
@@ -99,6 +101,7 @@ public class FileSystemManager {
 
     public void createFile(String fileName) throws Exception {
 
+        fileserverLock.lock();
         int saveIndex = -1;
 
         //1) check if file already exist
@@ -136,11 +139,14 @@ public class FileSystemManager {
 
             throw new Exception("Disk write failed");
         }
+
+        fileserverLock.unlock();
     }
 
 
     public void deleteFile(String fileName) throws Exception {
 
+        fileserverLock.lock();
         //SEARCH
 
         //Main variables one is to allocate the deleted file location and the other is to find it in FEntry
@@ -187,12 +193,13 @@ public class FileSystemManager {
             for (int i = 0; i < FILEENTRYSIZE; i++) {
                 disk.writeByte(0);
             }
-
-
         }
+        fileserverLock.unlock();
     }
 
     public void writeFile(String fileName, byte[] contents) throws Exception {
+
+        fileserverLock.lock();
 
         boolean fileExistflag = false;
         int numBlocksNeeded = 0;
@@ -352,6 +359,8 @@ public class FileSystemManager {
         for (int i = 0; i < numBlocksNeeded; i++) {
             freeBlockList[(freeBlockIndices[i]) + DATABLOCKSTART] = true;
         }
+
+        fileserverLock.unlock();
     }
 
 
@@ -379,6 +388,7 @@ public class FileSystemManager {
 
     public byte[] readFile(String fileName) throws Exception{
 
+        fileserverLock.lock();
         //READ
 
         //Main variables one is to allocate the index of the file to read and the other is to find it in FEntry
@@ -454,12 +464,16 @@ public class FileSystemManager {
 
             }
 
+            fileserverLock.unlock();
             return readFileData;
         }
+
+
     }
 
     public String[] listFiles() throws Exception {
 
+        fileserverLock.lock();
         //LIST
         String[] lsFiles;
 
@@ -473,6 +487,7 @@ public class FileSystemManager {
                 System.out.println(fileEntryDescriptors[i].getFilename());
             }
         }
+        fileserverLock.unlock();
         return lsFiles;
     }
 }
