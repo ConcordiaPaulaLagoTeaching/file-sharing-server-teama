@@ -1,4 +1,4 @@
-//Version 1.0
+//Version 1.1
 
 package ca.concordia.server;
 import ca.concordia.filesystem.FileSystemManager;
@@ -30,91 +30,15 @@ public class FileServer {
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
+
+                System.out.println("This client has port: "  + clientSocket.getPort());
+
                 System.out.println("Handling client: " + clientSocket);
-                try (
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                        PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)
-                ) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        System.out.println("Received from client: " + line);
-                        String[] parts = line.split(" ");
-                        String command = parts[0].toUpperCase();
-                        byte[] stringtoByte;
-                        String writeContent;
-
-                        switch (command) {
-                            case "CREATE":
-                                fsManager.createFile(parts[1]);
-                                writer.println("SUCCESS: File '" + parts[1] + "' created.");
-                                writer.flush();
-                                break;
-                            //TODO: Implement other commands READ, WRITE, DELETE, LIST
-                            case "DELETE":
-                                fsManager.deleteFile(parts[1]);
-                                writer.println("SUCCESS: File '" + parts[1] + "' deleted.");
-                                writer.flush();
-                                break;
-                            case "WRITE":
-
-                                //assembles all the words to write to the file
-                                writeContent = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
-
-                                //convert String to array of bytes in order to pass as parameter to writeFile function
-                                stringtoByte = writeContent.getBytes(StandardCharsets.UTF_8);
-                                fsManager.writeFile(parts[1], stringtoByte);
-                                writer.println("Successfully wrote " + stringtoByte.length + " bytes to file: '" + parts[1] + "'.");
-                                writer.flush();
-                                break;
-
-                            case "READ":
-
-                                String filename = parts[1];
-
-                                    // Read file data
-                                    byte[] fileData = fsManager.readFile(filename);
+                //Call Thread here
+                MultiClients multiHandle = new MultiClients(clientSocket, this.fsManager);
+                new Thread(multiHandle).start();
 
 
-                                        String content = new String(fileData, StandardCharsets.UTF_8);
-
-                                // Send content to client
-                                writer.println("The message for " + filename + " is :" + content);
-
-                                writer.flush();
-                                break;
-
-                            case "LIST":
-
-                                String [] files = fsManager.listFiles();
-
-
-
-                                for (int i = 0; i < files.length; i++){
-
-                                    if (files[i] != null){
-                                        writer.println("Name: " + Arrays.toString(files));
-                                    }
-
-                                }
-                                writer.flush();
-                                break;
-                            case "QUIT":
-                                writer.println("SUCCESS: Disconnecting.");
-                                return;
-                            default:
-                                writer.println("ERROR: Unknown command.");
-                                break;
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    try {
-                        clientSocket.close();
-                    } catch (Exception e) {
-                        // Ignore
-                    }
-                }
             }
         } catch (Exception e) {
             e.printStackTrace();
