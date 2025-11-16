@@ -16,6 +16,8 @@ public class FileServer {
 
     private FileSystemManager fsManager;
     private int port;
+    private int count;
+
     public FileServer(int port, String fileSystemName, int totalSize){
         // Initialize the FileSystemManager
         FileSystemManager fsManager = new FileSystemManager(fileSystemName,
@@ -28,84 +30,19 @@ public class FileServer {
         try (ServerSocket serverSocket = new ServerSocket(12345)) {
             System.out.println("Server started. Listening on port 12345...");
 
+
+
             while (true) {
                 Socket clientSocket = serverSocket.accept();
+
+                System.out.println("This client has port: "  + clientSocket.getPort());
+
                 System.out.println("Handling client: " + clientSocket);
-                try (
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                        PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)
-                ) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        System.out.println("Received from client: " + line);
-                        String[] parts = line.split(" ");
-                        String command = parts[0].toUpperCase();
-                        byte[] bytearray;
-
-                        switch (command) {
-                            case "CREATE":
-                                fsManager.createFile(parts[1]);
-                                writer.println("SUCCESS: File '" + parts[1] + "' created.");
-                                writer.flush();
-                                break;
-                            //TODO: Implement other commands READ, WRITE, DELETE, LIST
-                            case "DELETE":
-                                fsManager.deleteFile(parts[1]);
-                                writer.println("SUCCESS: File '" + parts[1] + "' deleted.");
-                                writer.flush();
-                                break;
-
-                            case "WRITE":
+                //Call Thread here
+                MultiClients multiHandle = new MultiClients(clientSocket, this.fsManager);
+                new Thread(multiHandle).start();
 
 
-                            case "READ":
-
-                                String filename = parts[1];
-
-                                    // Read file data
-                                    byte[] fileData = fsManager.readFile(filename);
-
-
-                                        String content = new String(fileData, StandardCharsets.UTF_8);
-
-                                // Send content to client
-                                writer.println("The message for " + filename + " is :" + content);
-
-                                writer.flush();
-                                break;
-
-                            case "LIST":
-
-                                String [] files = fsManager.listFiles();
-
-
-
-                                for (int i = 0; i < files.length; i++){
-
-                                    if (files[i] != null){
-                                        writer.println("Name: " + Arrays.toString(files));
-                                    }
-
-                                }
-                                writer.flush();
-                                break;
-                            case "QUIT":
-                                writer.println("SUCCESS: Disconnecting.");
-                                return;
-                            default:
-                                writer.println("ERROR: Unknown command.");
-                                break;
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    try {
-                        clientSocket.close();
-                    } catch (Exception e) {
-                        // Ignore
-                    }
-                }
             }
         } catch (Exception e) {
             e.printStackTrace();
