@@ -101,46 +101,52 @@ public class FileSystemManager {
 
     public void createFile(String fileName) throws Exception {
 
-        fileserverLock.lock();
-        int saveIndex = -1;
-
-        //1) check if file already exist
-        for (int i = 0; i < fileEntryDescriptors.length; i++) {
-            if ((fileEntryDescriptors[i] != null) && ((fileEntryDescriptors[i].getFilename().trim()).equals(fileName))) {
-                throw new Exception("File: " + fileName + " already exist");
-            }
-        }
-
-        //2) create a new file entry
-        FEntry newFile = new FEntry(fileName, (short) 0, (short) -1);
-
         try {
+            fileserverLock.lock();
+            int saveIndex = -1;
 
-            //3) check the file entry array to see if there's available space
+            //1) check if file already exist
             for (int i = 0; i < fileEntryDescriptors.length; i++) {
-                if (fileEntryDescriptors[i] == null) {
-                    saveIndex = i;
-                    break;
+                if ((fileEntryDescriptors[i] != null) && ((fileEntryDescriptors[i].getFilename().trim()).equals(fileName))) {
+                    throw new Exception("File: " + fileName + " already exist");
                 }
             }
 
-            if (saveIndex == -1) {
-                throw new Exception("Error: No more space for files");
-            } else {
-                fileEntryDescriptors[saveIndex] = newFile;
+            //2) create a new file entry
+            FEntry newFile = new FEntry(fileName, (short) 0, (short) -1);
+
+            try {
+
+                //3) check the file entry array to see if there's available space
+                for (int i = 0; i < fileEntryDescriptors.length; i++) {
+                    if (fileEntryDescriptors[i] == null) {
+                        saveIndex = i;
+                        break;
+                    }
+                }
+
+                if (saveIndex == -1) {
+                    throw new Exception("Error: No more space for files");
+                } else {
+                    fileEntryDescriptors[saveIndex] = newFile;
+                }
+
+                enterFEntry(saveIndex, newFile);
+
+            } catch (IOException e) {
+                if (saveIndex != -1) {
+                    fileEntryDescriptors[saveIndex] = null;
+                }
+
+                throw new Exception("Disk write failed");
             }
-
-            enterFEntry(saveIndex, newFile);
-
-        } catch (IOException e) {
-            if (saveIndex != -1) {
-                fileEntryDescriptors[saveIndex] = null;
-            }
-
-            throw new Exception("Disk write failed");
         }
 
+        catch (Exception e){
+            System.err.println("file already exists");
+        }
         fileserverLock.unlock();
+
     }
 
 
